@@ -1231,7 +1231,7 @@ class Illumina_miRNASeq(TCGAMatrixImport):
         'miRNAExp' : {
             'sampleMap' : 'tcga.iddag',
             'fileInclude' : '^.*.mirna.quantification.txt$',
-            'fileExclude' : ('^.*COAD.*[^hg19]\.mirna.quantification.txt$|'
+            'fileExclude' : ('^.*COAD.*hg19.mirna.quantification.txt$|'
                              '^.*OV.*hg19.mirna.quantification.txt$|'
                              '^.*READ.*hg19.mirna.quantification.txt$'),  #Special case for COAD/OV/READ having two sets of files
             'probeFields' : ['reads_per_million_miRNA_mapped'],
