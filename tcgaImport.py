@@ -30,14 +30,8 @@ import pandas as pd
 
 
 """
-
 Net query code
-
 """
-def correctChrom(key):
-    if not str(key).startswith("chr"): 
-        key = "chr" + str(key)
-    return key.upper().replace("CHR", "chr")
 class dccwsItem(object):
     baseURL = "http://tcga-data.nci.nih.gov/tcgadccws/GetXML?query="
 
@@ -93,12 +87,6 @@ class CustomQuery(dccwsItem):
             self.url = dccwsItem.baseURL + query
 
    
-def getText(nodelist):
-    rc = []
-    for node in nodelist:
-        if node.nodeType == node.TEXT_NODE:
-            rc.append(node.data)
-    return ''.join(rc)
     
 """
 
@@ -614,15 +602,6 @@ class TCGASegmentImport(TCGAGeneticImport):
         matrixName = self.config.name
         self.emitFile( dataSubType, self.getMeta(matrixName, dataSubType), segFile)
 
-def dict_merge(x, y):
-    result = dict(x)
-    for k,v in y.iteritems():
-        if k in result:
-            if result[k] != v:
-                result[k] = dict_merge(result[k], v)
-        else:
-            result[k] = v
-    return result
 
 class TCGAMatrixImport(TCGAGeneticImport):
     
@@ -1445,6 +1424,30 @@ tcgaConfig = {
 ############
 # Utility Functions
 ############
+def correctChrom(key):
+    if not str(key).startswith("chr"): 
+        key = "chr" + str(key)
+    return key.upper().replace("CHR", "chr")
+
+
+def getText(nodelist):
+    rc = []
+    for node in nodelist:
+        if node.nodeType == node.TEXT_NODE:
+            rc.append(node.data)
+    return ''.join(rc)
+
+
+def dict_merge(x, y):
+    result = dict(x)
+    for k,v in y.iteritems():
+        if k in result:
+            if result[k] != v:
+                result[k] = dict_merge(result[k], v)
+        else:
+            result[k] = v
+    return result
+
 
 def fileDigest( file ):
     md5 = hashlib.md5()
