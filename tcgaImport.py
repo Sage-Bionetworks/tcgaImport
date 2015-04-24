@@ -407,7 +407,10 @@ idfMap = {
     "Person Affiliation" : "dataProducer",
     "Date of Experiment" : "experimentalDate"
 }
-exclusionList = ["TCGA-07-0249", "TCGA-07-7600", "TCGA-AV-A03E", "TCGA-AV-A3E6", "TCGA-AV-A03D", "TCGA-07-0227", "231 Control", "231 IGF", "468 Control", "468 EGF", "Control_Jurkat", "Jurkat Control", "Jurkat Fas", "Mixed Lysate", "BD_Human_Tissue_Ref_RNA_Extract", "BioChain_RtHanded_Total_", "tratagene_Cell_Line_Hum_Ref_RNA_Extract"]
+
+CONTROL_SAMPLES = ["TCGA-07-0249", "TCGA-07-7600", "TCGA-AV-A03E", "TCGA-AV-A3E6", "TCGA-AV-A03D", "TCGA-07-0227", "231 Control", "231 IGF", "468 Control", "468 EGF", "Control_Jurkat", "Jurkat Control", "Jurkat Fas", "Mixed Lysate", "BD_Human_Tissue_Ref_RNA_Extract", "BioChain_RtHanded_Total_", "tratagene_Cell_Line_Hum_Ref_RNA_Extract"]
+
+
 class TCGAGeneticImport(FileImporter):      
     
     def mageScan(self, path):
@@ -560,8 +563,6 @@ class TCGAGeneticImport(FileImporter):
                 tmp.columns = [os.path.basename(path).split(".")[0]]
                 self.df = pd.concat([self.df, tmp], axis=1)
 
-    def convertKey(self, key, tmap):
-        return self.translateUUID(tmap.get(key, key))
 
 class TCGASegmentImport(TCGAGeneticImport):
 
@@ -603,11 +604,13 @@ class TCGASegmentImport(TCGAGeneticImport):
         segFile = "%s/%s.segment_file"  % (self.work_dir, dataSubType)
         tmap = self.getTargetMap()
 
-        self.df["key"] = self.df["key"].apply(self.convertKey, tmap=tmap)
+        self.df["key"] = [self.translateUUID(tmap.get(key, key).lower()) for key in self.df["key"]]
         self.df = self.df[self.df.key != 'NA']
         self.df["chrom"] = self.df["chrom"].apply(correctChrom)
+        if self.config.rmControl: #Filter out control samples
+            idx = [not any([k.startswith(item) for item in CONTROL_SAMPLES]) for k in self.df['key']]
+            self.df = self.df[idx]
         self.df.to_csv(segFile, index=False, header=False, sep="\t", float_format="%0.6g")     
-
         matrixName = self.config.name
         self.emitFile( dataSubType, self.getMeta(matrixName, dataSubType), segFile)
 
@@ -654,8 +657,8 @@ class TCGAMatrixImport(TCGAGeneticImport):
         f.close()
         d["key"] = "probes"
 	self.df.columns = [ self.translateUUID(d.get(key, key)) for key in self.df.columns]
-        if self.config.rmControl:
-            newCols = [col for col in self.df.columns if not any([col.startswith(item) for item in exclusionList])]
+        if self.config.rmControl: #Filter out control samples
+            newCols = [col for col in self.df.columns if not any([col.startswith(item) for item in CONTROL_SAMPLES])]
             self.df = self.df.ix[:, list(set(newCols))]
         sortedIndex = sorted(self.df.index)
         sortedCol = sorted(list(set(self.df.columns)))
@@ -992,7 +995,7 @@ class SNP6Import(TCGASegmentImport):
     
     def fileBuild(self, dataSubType):
         tmap = self.getTargetMap()
-        self.df["key"] = self.df["key"].apply(self.convertKey, tmap=tmap)
+        self.df["key"] = [self.translateUUID(tmap.get(key, key)) for key in self.df["key"]]
         self.df["chrom"] = self.df["chrom"].apply(correctChrom)
         segFile = open("%s/%s.out"  % (self.work_dir, dataSubType), "w")
         self.df.to_csv(segFile, index=False, header=False, sep="\t", float_format="%0.6g")     
