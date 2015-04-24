@@ -889,7 +889,6 @@ class TCGAClinicalImport(FileImporter):
         return fileInfo
     
     def fileBuild(self, dataSubType):
-
         if os.path.exists( "%s/%s" % (self.work_dir, dataSubType)):
             subprocess.call("cat %s/%s | sort -k 1 > %s/%s.sort" % (self.work_dir, dataSubType, self.work_dir, dataSubType), shell=True)
             handle = TableReader(self.work_dir + "/" + dataSubType + ".sort")
@@ -995,14 +994,15 @@ class SNP6Import(TCGASegmentImport):
     
     def fileBuild(self, dataSubType):
         tmap = self.getTargetMap()
+        segFile = "%s/%s.out"  % (self.work_dir, dataSubType)
         self.df["key"] = [self.translateUUID(tmap.get(key, key)) for key in self.df["key"]]
         self.df["chrom"] = self.df["chrom"].apply(correctChrom)
-        segFile = open("%s/%s.out"  % (self.work_dir, dataSubType), "w")
+        if self.config.rmControl: #Filter out control samples
+            idx = [not any([k.startswith(item) for item in CONTROL_SAMPLES]) for k in self.df['key']]
         self.df.to_csv(segFile, index=False, header=False, sep="\t", float_format="%0.6g")     
-        segFile.close()
         meta = self.getMeta(self.config.name + ".hg19", dataSubType)
         meta['annotations']['assembly'] = { "@id" : 'hg19' }
-        self.emitFile(dataSubType, meta, "%s/%s.out"  % (self.work_dir, dataSubType))
+        self.emitFile(dataSubType, meta, segFile)
        
 
 class HmiRNAImport(TCGAMatrixImport):
