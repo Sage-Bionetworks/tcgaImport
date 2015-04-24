@@ -666,6 +666,24 @@ class TCGAMatrixImport(TCGAGeneticImport):
         matrixName = self.config.name    
         self.emitFile( dataSubType, self.getMeta(matrixName, dataSubType), matrixFile) 
 
+class TCGASegmentImport_HumanHap(TCGASegmentImport):
+    
+    def fileScan(self, path, dataSubType):
+        """
+        This function takes a TCGA level 3 genetic file (file name and input handle),
+        and tries to extract probe levels or target mappings (experimental ID to TCGA barcode)
+        it emits these values to a handle, using the 'targets' and 'probes' string to identify 
+        the type of data being emited
+        """
+        with open(path,'U') as iHandle:
+            tmp = pd.read_csv(iHandle, sep="\t", header=0, dtype='object')
+        
+        colNames = list(tmp.columns)
+        colNames[0] = "key"
+        tmp.columns = colNames
+        tmp.columns = [commonMap.get(col, col) for col in tmp.columns] 
+        self.df = self.df.append(tmp.ix[:,["chrom", "loc.start", "loc.end", "key", "seg.mean"]])
+        self.df = self.df.ix[:,["chrom", "loc.start", "loc.end", "key", "seg.mean"]]
 
 adminNS = "http://tcga.nci/bcr/xml/administration/2.3"
 
@@ -1075,11 +1093,12 @@ class HuEx1_0stv2(TCGAMatrixImport):
 	tmp = tmp.dropna()
         self.df = pd.concat([self.df, tmp], axis=1)
 
-class Human1MDuoImport(TCGASegmentImport):
+class Human1MDuoImport(TCGASegmentImport_HumanHap):
     dataSubTypes = {
         'cna' : {
             'sampleMap' : 'tcga.iddag',
             'dataType' : 'genomicSegment',
+            'fileInclude' : '^.*seg.txt$|^.*segnormal.txt$',
             'fileExclude' : r'.*targets$',
             'probeFields' : ['mean'],
             'extension' : 'bed',
@@ -1087,11 +1106,12 @@ class Human1MDuoImport(TCGASegmentImport):
         }
     }
 
-class HumanHap550(TCGASegmentImport):
+class HumanHap550(TCGASegmentImport_HumanHap):
     dataSubTypes = {
         'cna' : {
             'sampleMap' : 'tcga.iddag',
             'dataType' : 'genomicSegment',
+            'fileInclude' : '^.*seg.txt$|^.*segnormal.txt$',
             'fileExclude' : r'.*targets$',
             'probeFields' : ['mean'],
             'extension' : 'bed',
