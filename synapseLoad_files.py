@@ -65,6 +65,8 @@ def loadOneSample(a):
         log("\tNot found:" + meta['name'])
         upload = True
     #Prepare the entity for upload
+    if upload and not args.push:
+        log( "\tWILL UPLOAD: %s" %meta['name'])
     if upload and args.push: 
         entity = File(dpath, name=meta['name'], parentId=parentId, annotations=meta['annotations'])
         if 'provenance' in meta:

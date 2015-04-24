@@ -574,7 +574,7 @@ class TCGASegmentImport(TCGAGeneticImport):
         matrixInfo = { 
             'name' : name + "." + dataSubType + ".bed", 
             'annotations' : {
-                'filetype' : 'bed5', 
+                'fileType' : 'bed5', 
                 "lastModified" : self.config.version,
                 'rowKeySrc' : "tcga.%s" % (self.config.abbr),
                 'dataSubType' : dataSubType,
@@ -664,7 +664,7 @@ class TCGASegmentImport_HumanHap(TCGASegmentImport):
         colNames[0] = "key"
         tmp.columns = colNames
         tmp.columns = [commonMap.get(col, col) for col in tmp.columns] 
-        self.df = self.df.append(tmp.ix[:,["chrom", "loc.start", "loc.end", "key", "seg.mean"]])
+        self.df = self.df.append(tmp[["chrom", "loc.start", "loc.end", "key", "seg.mean"]])
         self.df = self.df.ix[:,["chrom", "loc.start", "loc.end", "key", "seg.mean"]]
 
 adminNS = "http://tcga.nci/bcr/xml/administration/2.3"
@@ -960,16 +960,17 @@ class SNP6Import(TCGASegmentImport):
     }
     
     def fileScan(self, path, dataSubType):
-        handle = open(path)
-        colName = None
-        line = handle.readline()
-        colName = line.rstrip().split("\t")
-        colName = [commonMap.get(col, col) for col in colName]  
-        colName[0] = "key"
-        tmp = pd.read_csv(handle, sep="\t", header=None, names=colName)
+        with open(path) as handle:
+            colName = None
+            line = handle.readline()
+            colName = line.rstrip().split("\t")
+            colName = [commonMap.get(col, col) for col in colName]  
+            colName[0] = "key"
+            tmp = pd.read_csv(handle, sep="\t", header=None, names=colName, dtype='object')
         tmp = tmp.ix[:, ["chrom", "loc.start", "loc.end", "key", "seg.mean"]]
         self.df = self.df.append(tmp)
-        handle.close()
+        self.df = self.df.ix[:,["chrom", "loc.start", "loc.end", "key", "seg.mean"]]
+
     
     def fileBuild(self, dataSubType):
         tmap = self.getTargetMap()
