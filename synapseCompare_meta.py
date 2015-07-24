@@ -8,7 +8,9 @@ import sys
 import logging
 import time
 
-logging.basicConfig(level=logging.INFO)
+#logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 def getAllSynapseFiles(projectId):
     """Extracts a list of files in Synapse creating a name to id dictionary."""
@@ -30,7 +32,7 @@ if __name__ == "__main__":
     else:
         basename_list = []
         for plat in tcgaImport.platform_list():
-            logging.info("Queueing: %s" % (plat))
+            logger.info("Queueing: %s" % (plat))
             basename_list += tcgaImport.archive_list(plat)
         basename_list.extend(tcgaImport.clinicnal_archive_list())
         basename_list.extend(tcgaImport.mutation_archive_list())
@@ -40,9 +42,9 @@ if __name__ == "__main__":
     allSynapseFiles = getAllSynapseFiles(args.project)
 
     for basename in basename_list:
-        logging.info("Checking: %s" % (basename))
+        logger.info("Checking: %s" % (basename))
         basename_platform_alias = tcgaImport.get_basename_platform(basename)
-        logging.info(basename_platform_alias)
+        logger.info(basename_platform_alias)
         conf = tcgaImport.getBaseBuildConf(basename, basename_platform_alias, "./")
         request = conf.buildRequest()
         
@@ -57,12 +59,11 @@ if __name__ == "__main__":
                 prov = syn.getProvenance(entity_id)
                 #Filter out only used not executed items
                 prov = [x['url'] for x in prov['used'] if not x.get('wasExecuted', False)]
-                logging.info("Provenance: %s" % (prov))
                 req_elems = [x['url'] for x in request['provenance']['used']]
                 if set(prov)==set(req_elems):
                     handle.write("READY: %s\n" % (basename)) 
                 else:
-                    logging.info("Not all used archives Found: %s" ','.join(set(req_elems) - set(prov)))
+                    logger.info("Not all used archives Found: %s" %', '.join(set(req_elems) - set(prov)))
                     handle.write("UPDATE: %s\n" % (basename))
                     #We have already notified that basename needs to be updated skip rest of subtypes
                     break

@@ -6,21 +6,14 @@ import re
 from glob import glob
 from  multiprocessing.dummy import Pool
 import synapseclient
+from synapseHelpers import query2df
 from synapseclient import Activity, File, Folder
 import hashlib
+import logging
 from argparse import ArgumentParser
 
+PROJECTHIERARCHYQUERY =  "select id, name, parentId from file where benefactorId=='%s'"
 
-def get_md5(path):
-    md5 = hashlib.md5()
-    with open(path,'rb') as f:
-        for chunk in iter(lambda: f.read(8192), ''): 
-                md5.update(chunk)
-        md5str = md5.hexdigest()
-    return md5str
-
-def log(message):
-    sys.stderr.write(message + "\n")
 
 def find_child(syn, project, name):
     query = "select id from entity where parentId=='%s' and name=='%s'" % (project, name)
@@ -45,7 +38,7 @@ def loadOneSample(a):
         2) Fetches the md5 of any existing file and compares
         3) If new or different md5 upload file.
     """
-    log( "Loading:" + a )
+    logging.debug( "Loading:" + a )
     with open(a) as handle:
         meta = json.load(handle)
     dpath = re.sub(r'.json$', '', a)
@@ -60,13 +53,13 @@ def loadOneSample(a):
     if len(res) != 0:
         tmp_ent = syn.get(res[0]['entity.id'], downloadFile=False)
         upload = (tmp_ent.md5 != meta['annotations']['md5'])
-        log( "\tFound: %s and upload (MD5 %s match)" %(tmp_ent.id, 'DOESN\'T' if upload else 'does'))
+        logging.debug( "\tFound: %s and upload (MD5 %s match)" %(tmp_ent.id, 'DOESN\'T' if upload else 'does'))
     else:
-        log("\tNot found:" + meta['name'])
+        logging.debug("\tNot found:" + meta['name'])
         upload = True
     #Prepare the entity for upload
     if upload and not args.push:
-        log( "\tWILL UPLOAD: %s" %meta['name'])
+        logging.info( "\tWILL UPLOAD: %s" %meta['name'])
     if upload and args.push: 
         entity = File(dpath, name=meta['name'], parentId=parentId, annotations=meta['annotations'])
         if 'provenance' in meta:
@@ -79,9 +72,9 @@ def loadOneSample(a):
 
         else:
             prov=None
-        log('\tUploading:%s' %entity.name)
+        logging.debug('\tUploading:%s' %entity.name)
         entity = syn.store(entity, activity=prov)
-        log('\tCreated/Updated: **** %s ****' %entity.id)
+        logging.debug('\tCreated/Updated: **** %s ****' %entity.id)
 
 
 
@@ -95,6 +88,11 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     syn = synapseclient.login()
+
+    logging.basicConfig(level=logging.INFO)
+
+    #Get a list of the files and folders in Synapse (will be updated when folder added)
+    #hierarchy = query2df(syn.query(PROJECTHIERARCHYQUERY %args.project))
 
     p=Pool(5)
     p.map(loadOneSample, glob(os.path.join( args.src, "*.json")))
