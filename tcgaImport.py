@@ -1408,7 +1408,6 @@ tcgaConfig = {
     'IlluminaHiSeq_RNASeq': IlluminaHiSeq_RNASeq,
     'IlluminaGA_RNASeq' : Illumina_RNASeq,
     'IlluminaGA_RNASeqV2' : Illumina_RNASeqV2,
-    'IlluminaGA_mRNA_DGE' : Illumina_RNASeq,
     'IlluminaHiSeq_RNASeqV2' : Illumina_RNASeqV2,
     'MDA_RPPA_Core' : MDA_RPPA_Core,
     'IlluminaGA_miRNASeq' : Illumina_miRNASeq,
