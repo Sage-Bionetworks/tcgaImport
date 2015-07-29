@@ -26,14 +26,20 @@ syn = synapseclient.login(silent=True)
 
 whitelistEntity = syn.get(WHITELISTID)
 whitelist = pd.read_csv(whitelistEntity.path, sep='\t')
-toRemove = whitelist.ix[whitelist.Do_not_use, 'aliquot_barcode']
 inputFiles = synapseHelpers.query2df(syn.chunkedQuery(QUERY_STR))
 
 code=synapseHelpers.thisCodeInSynapse(parentId='syn1774100')
 for i, row in inputFiles.iterrows():
-    print row.id, row['name'], 
-    inputFileEntity = syn.get(row.id) 
+    print row.id, row['name'] 
+    inputFileEntity = syn.get(row.id)
     outFileName = row['name'][:-4]+'_whitelisted'+row['name'][-4:]
+    
+    # Get the platform type for the file from the filename
+    platform = row['platform']
+
+    toRemove = whitelist.ix[whitelist.Do_not_use & 
+        (whitelist.platform == platform), 'aliquot_barcode'].tolist()
+
     if isUptodate(outFileName, [whitelistEntity, inputFileEntity]):
         print ' is up to date'
         continue
@@ -49,7 +55,7 @@ for i, row in inputFiles.iterrows():
     else: #All other fileTypes
         df = pd.read_csv(inputFileEntity.path, sep='\t', index_col=0)
         print df.shape,
-        colsToKeep = [col for col in df.columns if col.startswith('TCGA') and col[:27] not in toRemove]
+        colsToKeep = [col for col in df.columns if col.startswith('TCGA') and col.split('.')[0] not in toRemove]
         df = df.ix[:, colsToKeep]
         print '->', df.shape
         df.to_csv('/gluster/home/lomberg/tcgaImport/out/'+outFileName, sep='\t')
@@ -64,4 +70,3 @@ for i, row in inputFiles.iterrows():
 
     f = File('/gluster/home/lomberg/tcgaImport/out/'+outFileName,  parent='syn4557014', annotations=annots)
     f = syn.store(f, used=[inputFileEntity, whitelistEntity], executed=code)
-
