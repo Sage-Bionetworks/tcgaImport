@@ -30,15 +30,12 @@ inputFiles = synapseHelpers.query2df(syn.chunkedQuery(QUERY_STR))
 
 code=synapseHelpers.thisCodeInSynapse(parentId='syn1774100')
 for i, row in inputFiles.iterrows():
-    print row.id, row['name'] 
+    print row.id, row['name'],
     inputFileEntity = syn.get(row.id)
     outFileName = row['name'][:-4]+'_whitelisted'+row['name'][-4:]
     
-    # Get the platform type for the file from the filename
-    platform = row['platform']
-
-    toRemove = whitelist.ix[whitelist.Do_not_use & 
-        (whitelist.platform == platform), 'aliquot_barcode'].tolist()
+    toRemove = set(whitelist.ix[whitelist.Do_not_use & (whitelist.platform == row['platform']), 
+                                'aliquot_barcode'])
 
     if isUptodate(outFileName, [whitelistEntity, inputFileEntity]):
         print ' is up to date'
