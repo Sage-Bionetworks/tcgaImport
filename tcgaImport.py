@@ -388,7 +388,6 @@ commonMap = {
     "Chromosome" : "chrom"
 }
 
-
 idfMap = {
     "Investigation Title" : "title",
     "Experiment Description" : "experimentalDescription",
@@ -598,7 +597,9 @@ class TCGASegmentImport(TCGAGeneticImport):
         if self.config.rmControl: #Filter out control samples
             idx = [not any([k.startswith(item) for item in CONTROL_SAMPLES]) for k in self.df['key']]
             self.df = self.df[idx]
-        self.df.to_csv(segFile, index=False, header=False, sep="\t", float_format="%0.6g")     
+        self.df = self.df[['key', 'chrom', 'loc.start', 'loc.end', 'seg.mean']]
+        self.df.columns = ['Sample', 'Chromosome', 'Start', 'End', 'Segment_Mean']
+        self.df.to_csv(segFile, index=False, sep="\t", float_format="%0.6g")     
         matrixName = self.config.name
         self.emitFile( dataSubType, self.getMeta(matrixName, dataSubType), segFile)
 
@@ -661,6 +662,7 @@ class TCGASegmentImport_HumanHap(TCGASegmentImport):
             tmp = pd.read_csv(iHandle, sep="\t", header=0, dtype='object')
         
         colNames = list(tmp.columns)
+        #TODO reformat output to match SNP_6
         colNames[0] = "key"
         tmp.columns = colNames
         tmp.columns = [commonMap.get(col, col) for col in tmp.columns] 
@@ -961,25 +963,20 @@ class SNP6Import(TCGASegmentImport):
     
     def fileScan(self, path, dataSubType):
         with open(path) as handle:
-            colName = None
-            line = handle.readline()
-            colName = line.rstrip().split("\t")
-            colName = [commonMap.get(col, col) for col in colName]  
-            colName[0] = "key"
-            tmp = pd.read_csv(handle, sep="\t", header=None, names=colName, dtype='object')
-        tmp = tmp.ix[:, ["chrom", "loc.start", "loc.end", "key", "seg.mean"]]
+            tmp = pd.read_csv(handle, sep="\t", dtype='object')
+        tmp = tmp.ix[:, ['Sample', 'Chromosome', 'Start', 'End', 'Num_Probes', 'Segment_Mean']]
         self.df = self.df.append(tmp)
-        self.df = self.df.ix[:,["chrom", "loc.start", "loc.end", "key", "seg.mean"]]
+        self.df = self.df.ix[:,['Sample', 'Chromosome', 'Start', 'End', 'Num_Probes', 'Segment_Mean']]
 
     
     def fileBuild(self, dataSubType):
         tmap = self.getTargetMap()
         segFile = "%s/%s.out"  % (self.work_dir, dataSubType)
-        self.df["key"] = [self.translateUUID(tmap.get(key, key)) for key in self.df["key"]]
-        self.df["chrom"] = self.df["chrom"].apply(correctChrom)
+        self.df["Sample"] = [self.translateUUID(tmap.get(key, key)) for key in self.df["Sample"]]
+        self.df["Chromosome"] = self.df["Chromosome"].apply(correctChrom)
         if self.config.rmControl: #Filter out control samples
-            idx = [not any([k.startswith(item) for item in CONTROL_SAMPLES]) for k in self.df['key']]
-        self.df.to_csv(segFile, index=False, header=False, sep="\t", float_format="%0.6g")     
+            idx = [not any([k.startswith(item) for item in CONTROL_SAMPLES]) for k in self.df['Chromosome']]
+        self.df.to_csv(segFile, index=False, sep="\t", float_format="%0.6g")     
         meta = self.getMeta(self.config.name + ".hg19", dataSubType)
         meta['annotations']['assembly'] = { "@id" : 'hg19' }
         self.emitFile(dataSubType, meta, segFile)
@@ -1009,6 +1006,8 @@ class CGH244AImport(TCGASegmentImport):
             'nameGen' : lambda x : "%s.cna.bed" % (x)
         }
     }
+    #TODO reformat output to match SNP_6
+
 
 class CGH415K_G4124A(TCGASegmentImport):
     dataSubTypes = {
