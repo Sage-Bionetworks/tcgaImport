@@ -1,18 +1,18 @@
+import argparse
 import synapseclient
 from synapseclient import Table
 import pandas as pd
 import synapseHelpers
 from multiprocessing.dummy import  Pool
 
-FILEQUERY = ("select * from file where benefactorId=='syn2812961' "
-                               "and fileType!='clinicalMatrix'"
-                               "and fileType!='maf'")
-#TABLEID='syn3505659'  #New
-TABLEID='syn3281840' #Original
+FILEQUERY = ("select * from file where benefactorId=='%s' "
+                               "and fileType!='clinicalMatrix' "
+                               "and fileType!='maf' "
+                               "and fileType!='ttl'")
 syn = synapseclient.login()
 
 
-def findUpdates(files, tableId=TABLEID):
+def findUpdates(files, tableId):
     """Compares the lastmodified date in the table and file anntoations.
     
     files is a table of file medata including the column lastModified.
@@ -29,11 +29,13 @@ def findUpdates(files, tableId=TABLEID):
     return files.ix[toUpdate,:]
 
 
-def deleteAffectedRows(updatedFiles, tableId=TABLEID):
+def deleteAffectedRows(updatedFiles, tableId):
     """Given a list of file Entities.  Extracts all rows in the table
     that match the id column in the updatedFiles data frame and
     deletes them from Synapse."""
-
+    if len(updatedFiles)==0:
+        return
+    
     #Build query to find rows to delete for update
     idSet = "('" + "','".join(updatedFiles.id) +"')"
     queryStr = "select id from %s where id in %s" %(tableId, idSet)
@@ -44,16 +46,14 @@ def deleteAffectedRows(updatedFiles, tableId=TABLEID):
         syn.delete(rowSet)
 
 
-def countAndUpdateTable(input, path='out/', tableId=TABLEID):
+def countAndUpdateTable(input, tableId):
     i, fileMeta = input
-    if fileMeta.fileType=='ttl':
-        return []
-    print 'updating table:%s' %tableId, i, fileMeta.id, fileMeta['name'], fileMeta['basename']
-    ent = syn.get(fileMeta.id, downloadLocation=path)
+    print 'updating table:%s' %tableId, 'with file %s(%s)' %(fileMeta['name'], fileMeta.id), fileMeta['basename']
+    ent = syn.get(fileMeta.id)
     if fileMeta.fileType =='bed5':
-        data = pd.read_csv(ent.path, sep='\t', header=None)
+        data = pd.read_csv(ent.path, sep='\t')
         nFeatures = 0
-        samples = list(set(data[3].dropna()))
+        samples = list(set(data.Sample.dropna()))
     else: #All other fileTypes
         data = pd.read_csv(ent.path, sep='\t', index_col=0)
         nFeatures, nSamples = data.shape
@@ -64,17 +64,28 @@ def countAndUpdateTable(input, path='out/', tableId=TABLEID):
     metadata['patient_barcode'] = [x[:12] for x in metadata.samples]
     metadata.drop(['projectId', 'tissue', u'md5', u'assembly'], axis=1, inplace=True)
     metadata.nFeatures = metadata.nFeatures.astype('int')
+    cols = syn.tableQuery('select * from %s limit 1' %args.tableId).asDataFrame().columns
 
     #Update rows in table
     print 'adding', metadata.shape[0]
-    t = syn.store(Table(tableId, metadata))
+    t = syn.store(Table(tableId, metadata[cols]))
     return metadata
 
 
 
 if __name__ == '__main__':
-    files = synapseHelpers.query2df(syn.chunkedQuery(FILEQUERY), savedSynapseFields=('id', 'name', 'versionNumber'))
-    updatedFiles= findUpdates(files)
+    parser = argparse.ArgumentParser(description=('Updates a Synapse Table with '
+                                                  'sample sampling information'))
+    parser.add_argument('-t', '--table',  dest='tableId', default='syn3281840',
+            help='Table where results are stored (e.g. syn3281840) ')
+    parser.add_argument('-p', '--project',  dest='projectId', default='syn2812961',
+            help='Project (benefactorId) where output files are stored. (e.g. syn2812961)')
+    args = parser.parse_args()
+
+
+
+    files = synapseHelpers.query2df(syn.chunkedQuery(FILEQUERY % args.projectId), savedSynapseFields=('id', 'name', 'versionNumber'))
+    updatedFiles= findUpdates(files, args.tableId)
     print 'NEED TO UPDATE:', updatedFiles.shape[0], 'FILES'
-    deleteAffectedRows(updatedFiles)
-    dfs = map(countAndUpdateTable, updatedFiles.iterrows())
+    deleteAffectedRows(updatedFiles, args.tableId)
+    dfs = [countAndUpdateTable(row, tableId=args.tableId) for row in updatedFiles.iterrows()]
