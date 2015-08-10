@@ -41,14 +41,14 @@ for i, row in inputFiles.iterrows():
         print ' is up to date'
         continue
     if row.fileType =='bed5':  #Do the filtering for bed files
-        df = pd.read_csv(inputFileEntity.path, sep='\t', header=None)
+        df = pd.read_csv(inputFileEntity.path, sep='\t')
         print df.shape,
-        idx = ~df[3].isin(toRemove)
+        idx = ~df.Sample.isin(toRemove)
         df = df[idx]
         print '->', df.shape
-        df.to_csv('/gluster/home/lomberg/tcgaImport/out/'+outFileName, sep='\t', header=False, index=False)
+        df.to_csv('/gluster/home/lomberg/tcgaImport/out/'+outFileName, sep='\t', index=False)
         nFeatures = 0
-        nSamples = len(set(df[3]))
+        nSamples = len(set(df.Sample))
     else: #All other fileTypes
         df = pd.read_csv(inputFileEntity.path, sep='\t', index_col=0)
         print df.shape,
