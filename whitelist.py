@@ -52,7 +52,9 @@ for i, row in inputFiles.iterrows():
     else: #All other fileTypes
         df = pd.read_csv(inputFileEntity.path, sep='\t', index_col=0)
         print df.shape,
-        colsToKeep = [col for col in df.columns if col.startswith('TCGA') and col.split('.')[0] not in toRemove]
+        colsToKeep = [col for col in df.columns if (col.startswith('TCGA') and 
+                                                    (col.split('.')[0] not in toRemove) and
+                                                    ('.' not in col))]
         df = df.ix[:, colsToKeep]
         print '->', df.shape
         df.to_csv('/gluster/home/lomberg/tcgaImport/out/'+outFileName, sep='\t')
