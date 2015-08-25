@@ -62,7 +62,7 @@ def countAndUpdateTable(input, tableId):
     metadata['nFeatures'] = nFeatures
     metadata['samples'] = samples
     metadata['patient_barcode'] = [x[:12] for x in metadata.samples]
-    metadata.drop(['projectId', 'tissue', u'md5', u'assembly'], axis=1, inplace=True)
+    metadata.drop(['tissue', u'md5', u'assembly'], axis=1, inplace=True)
     metadata.nFeatures = metadata.nFeatures.astype('int')
     cols = syn.tableQuery('select * from %s limit 1' %args.tableId).asDataFrame().columns
 
