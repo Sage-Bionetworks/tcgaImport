@@ -94,7 +94,7 @@ if __name__ == "__main__":
     #Get a list of the files and folders in Synapse (will be updated when folder added)
     #hierarchy = query2df(syn.query(PROJECTHIERARCHYQUERY %args.project))
 
-    p=Pool(5)
+    p=Pool(9)
     p.map(loadOneSample, glob(os.path.join( args.src, "*.json")))
         
 

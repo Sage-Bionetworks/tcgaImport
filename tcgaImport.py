@@ -512,6 +512,7 @@ class TCGAGeneticImport(FileImporter):
         colType = None
         firstLine = iHandle.readline()
         colName = firstLine.rstrip().split("\t")
+        print colName, path
         if colName[0] == "Hybridization REF" or colName[0] == "Sample REF":
             mode = 2
         elif colName[0] == "Chromosome"  or colName[0] == "chromosome":
@@ -1046,7 +1047,7 @@ class HT_HGU133A(TCGAMatrixImport):
             'probeMap' : 'affyU133a',
             'sampleMap' : 'tcga.iddag',
             'dataType' : 'genomicMatrix',
-            'fileExclude' : r'.*targets$',
+            'fileExclude' : r'.*targets$|.*README.*.txt',
             'probeFields' : ['Signal', 'Value'],
             'extension' : 'tsv',
             'nameGen' : lambda x : "%s.geneExp.tsv" % (x)

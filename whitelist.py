@@ -9,17 +9,38 @@ from synapseHelpers import query2df, thisCodeInSynapse
 QUERY_STR = "select * from file where benefactorId=='syn2812961' and acronym=='PANCAN'"
 WHITELISTID = 'syn4551248'
 
-def isUptodate(name, files):
+def getFileIdFromName(name):
     q = syn.chunkedQuery("select id from file where name=='%s' and parentId=='%s'" %(name, 'syn4557014'))
+    id =  q.next()['file.id']
+    return id
+
+def isUptodate(name, files, toRemove, platform):
     try:
-        id =  q.next()['file.id']
+        activity = syn.getProvenance(getFileIdFromName(name))
     except StopIteration:
-        print 'not found',
+        print 'File not found'
         return False
-    activity = syn.getProvenance(id)
-    used = set(['%s.%s' % (x['reference']['targetId'], x['reference']['targetVersionNumber']) for x in activity['used'] if x['wasExecuted']==False])
+    used = set([(x['reference']['targetId'], x['reference']['targetVersionNumber']) for x in activity['used'] if x['wasExecuted']==False])
+    oldWhitelist = id, version = [i for i in used if i[0]==WHITELISTID][0]
+    used = set(['%s.%s' %i for i in used if i[0]!=WHITELISTID])
     currentVersions = set(['%s.%s' % (x.id, x.versionNumber) for x in files])
-    return currentVersions==used
+    # * If upstream data files changed return False
+    if currentVersions!=used:
+        return False
+    #else check if the whitelisting is different for this specific platform
+    oldToRemove = getChangeSet(oldWhitelist[1], platform)
+    return oldToRemove==toRemove
+
+
+def getChangeSet(version, platform):
+    """Extracts the old whitelist id and version of used and filters the changes down
+    to a specific platform."""
+    old_whitelist  = syn.get(WHITELISTID, version=version)
+    whitelist = pd.read_csv(whitelistEntity.path, sep='\t')
+    oldToRemove = set(whitelist.ix[whitelist.Do_not_use & (whitelist.platform==platform), 
+                                'aliquot_barcode'])
+    return oldToRemove
+    
 
 #mp = Pool(8)
 syn = synapseclient.login(silent=True)
@@ -37,8 +58,10 @@ for i, row in inputFiles.iterrows():
     toRemove = set(whitelist.ix[whitelist.Do_not_use & (whitelist.platform == row['platform']), 
                                 'aliquot_barcode'])
 
-    if isUptodate(outFileName, [whitelistEntity, inputFileEntity]):
-        print ' is up to date'
+    if isUptodate(outFileName, [inputFileEntity], toRemove, row['platform']):
+        print ' is up to date - but update provenance'
+        e = syn.get(getFileIdFromName(outFileName), downloadFile=False)
+        syn.store(e, used=[inputFileEntity, whitelistEntity], executed=code)
         continue
     if row.fileType =='bed5':  #Do the filtering for bed files
         df = pd.read_csv(inputFileEntity.path, sep='\t')
