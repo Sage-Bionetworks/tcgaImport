@@ -31,7 +31,6 @@ import pandas as pd
 """
 Net query code
 """
-
 class dccwsItem(object):
     baseURL = "http://tcga-data.nci.nih.gov/tcgadccws/GetXML?query="
 
@@ -485,6 +484,7 @@ class TCGAGeneticImport(FileImporter):
     def translateUUID(self, uuid):
         return self.config.translateUUID(uuid)
     
+
     def getTargetMap(self):
         handle = TableReader(self.work_dir + "/targets")
         tTrans = {}
@@ -572,8 +572,7 @@ class TCGASegmentImport(TCGAGeneticImport):
 
     def getMeta(self, name, dataSubType):
 	# fileType hardcoded into getMeta function, and fileType listed here is used to write 
-	# extension when files are uploaded to Synapse, as synapseLoad_files reads from associated 
-	# .json file. 
+	# extension when files are uploaded to Synapse, as synapseLoad_files reads from associated .json file
         matrixInfo = { 
             'name' : name + "." + dataSubType + ".seg", 
             'annotations' : {
@@ -929,10 +928,8 @@ class CGH1x1mImport(TCGASegmentImport):
     }
 
 class SNP6Import(TCGASegmentImport):
-    # Define reference genome.
     assembly = 'hg19'
     # Dictionary which defines dictionaries for each dataSubType, i.e. 'cna'.
-    # The dictionary for each dst maps 
     dataSubTypes = { 
         'cna' : { 
             'sampleMap' :'tcga.iddag',
@@ -968,30 +965,22 @@ class SNP6Import(TCGASegmentImport):
         }
     }
     
-    # fileScan determines which files from incoming folder to include.
+
     def fileScan(self, path, dataSubType):
-	# Read in file, which contains one patients data (same barcode).
         with open(path) as handle:
             tmp = pd.read_csv(handle, sep="\t", dtype='object')
-
         tmp = tmp.ix[:, ['Sample', 'Chromosome', 'Start', 'End', 'Num_Probes', 'Segment_Mean']]
-
         self.df = self.df.append(tmp)
         self.df = self.df.ix[:,['Sample', 'Chromosome', 'Start', 'End', 'Num_Probes', 'Segment_Mean']]
 
-    def fileBuild(self, dataSubType):
 
+    def fileBuild(self, dataSubType):
         tmap = self.getTargetMap()
         segFile = "%s/%s.out"  % (self.work_dir, dataSubType)
         self.df["Sample"] = [self.translateUUID(tmap.get(key, key)) for key in self.df["Sample"]]
-
-	#SEG files chr name is indicated by number only, i.e. '1' as opposed to 'chr1'. 
-	#self.df["Chromosome"] = self.df["Chromosome"].apply(correctChrom)
-	
-	# Convert Probe and Start types to int to remove decimal point.
+	# Convert Num_Probes and Start cols to type int to remove decimal point
 	self.df['Num_Probes'] = self.df['Num_Probes'].astype(int)	
 	self.df['Start'] = self.df['Start'].astype(int)
-
         if self.config.rmControl: #Filter out control samples
             idx = [not any([k.startswith(item) for item in CONTROL_SAMPLES]) for k in self.df['Chromosome']]
         self.df.to_csv(segFile, index=False, sep="\t", float_format="%0.6g")     

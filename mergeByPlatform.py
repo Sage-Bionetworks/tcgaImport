@@ -1,11 +1,12 @@
-import synapseclient
-import pandas as pd
-import hashlib
-from synapseHelpers import query2df, thisCodeInSynapse
-from multiprocessing.dummy  import Pool
 import argparse
+import hashlib
+from multiprocessing.dummy  import Pool
+import pandas as pd
+import synapseclient
+from synapseHelpers import query2df, thisCodeInSynapse
 
-PLATFORMS = [('MDA_RPPA_Core', 'RPPA', 'mdanderson.org_PANCAN_MDA_RPPA_Core.RPPA.tsv'),
+
+platforms = [('MDA_RPPA_Core', 'RPPA', 'mdanderson.org_PANCAN_MDA_RPPA_Core.RPPA.tsv'),
              ('IlluminaGA_RNASeqV2', 'isoformExp', 'unc.edu_PANCAN_IlluminaGA_RNASeqV2.isoformExp.tsv'),
              ('IlluminaGA_RNASeqV2', 'geneExp', 'unc.edu_PANCAN_IlluminaGA_RNASeqV2.geneExp.tsv'),
              ('IlluminaHiSeq_RNASeqV2', 'isoformExp', 'unc.edu_PANCAN_IlluminaHiSeq_RNASeqV2.isoformExp.tsv'),
@@ -20,24 +21,22 @@ PLATFORMS = [('MDA_RPPA_Core', 'RPPA', 'mdanderson.org_PANCAN_MDA_RPPA_Core.RPPA
              ('Genome_Wide_SNP_6', 'cna_nocnv', 'broad.mit.edu_PANCAN_Genome_Wide_SNP_6.hg19.cna_nocnv.seg'), 
              ('Genome_Wide_SNP_6', 'cna_nocnv_probecount', 'broad.mit.edu_PANCAN_Genome_Wide_SNP_6.hg19.cna_nocnv_probecount.seg'),
              ('Genome_Wide_SNP_6', 'cna_probecount', 'broad.mit.edu_PANCAN_Genome_Wide_SNP_6.hg19.cna_probecount.seg')]
-             #MSI,
-             #Maf
-
-# Generate string of unique platforms from PLATFORMS array.
-availPlatforms = '\n'.join(set([x[0] for x in PLATFORMS]))
-
+             #MSI,Maf
+# Generate string of unique platforms from platforms array.
+availPlatforms = '\n'.join(set([(x[0]+'\t') for x in platforms]))
 # Argument parser to allow user to indicate with synapse project to merge files from, which project to load the merged file into, 
-# and an optional platform argument if the user only has files of a single platform type. 
+# and an optional platform argument if the user only has files which are subset of total platforms. 
 parser = argparse.ArgumentParser()
 parser.add_argument('benefactorId',help='ID of synapse project to merge files from.')
 parser.add_argument('parentId',help='ID of synapse project to add merged file to.')
-parser.add_argument('-p','--platform',help='If merging files of single platform type, add platform name after option. Available platforms' + '\n' +  availPlatforms,type=str)
+parser.add_argument('filePath',help='Local filepath to write merged files to.',type=str)
+parser.add_argument('-p','--platforms',nargs='*',help='If merging subset of platform type, add platform(s) name after option. \
+		    Available platforms' + '\n' +  availPlatforms,type=str)
 args = parser.parse_args()
-
-if args.platform:
-	PLATFORMS = [x for x in PLATFORMS if x[0] == args.platform]	
-
+if args.platforms is not None:
+	platforms = [x for x in platforms if x[0] in args.platforms]	
 QUERY_STR = "select * from file where benefactorId==" + ("'{0}'").format(args.benefactorId)
+
 
 def isUptodate(name, files):
     q = syn.chunkedQuery("select id from file where name=='%s' and parentId=='%s'" %(name, args.parentId))
@@ -54,33 +53,27 @@ def isUptodate(name, files):
 mp = Pool(8)
 syn = synapseclient.login(silent=True)
 allFiles =  query2df(syn.chunkedQuery(QUERY_STR))
-
-for platform, dataSubType, name in PLATFORMS:
+for platform, dataSubType, name in platforms:
     print platform, dataSubType,
     filteredMeta = allFiles[(allFiles.platform==platform) & (allFiles.dataSubType==dataSubType) & (allFiles.acronym!='PANCAN')]
     files = mp.map(syn.get, filteredMeta.id)
-
     if isUptodate(name, files):
         print ' is up to date'
         continue
-
-    if list(set(filteredMeta.fileType))[0] =='seg' or list(set(filteredMeta.fileType))[0] == 'bed5':
+    if list(set(filteredMeta.fileType))[0] in ['seg','bed']:
         dfs = mp.map(lambda f: pd.read_csv(f.path, sep='\t'), files)
         df = pd.concat(dfs, axis=0)
-        df.to_csv('/gluster/home/lomberg/tcgaImport/out/'+name, sep='\t', index=False)
+        df.to_csv(args.filePath+name, sep='\t', index=False)
         nSamples = len(set(df.Sample))
         nFeatures = 0
     else: #All other fileTypes
         dfs = mp.map(lambda f: pd.read_csv(f.path, sep='\t', index_col=0), files)
         df = pd.concat(dfs, axis=1)
-        df.to_csv('/gluster/home/lomberg/tcgaImport/out/'+name, sep='\t')
+        df.to_csv(args.filePath+name, sep='\t')
         nFeatures, nSamples = df.shape
-
     print 'Created', name, df.shape
-
     #Add file to Synapse
-    entity = synapseclient.File(''/gluster/home/lomberg/tcgaImport/out/''+name, parentId=args.parentId)
-
+    entity = synapseclient.File(args.filePath+name, parentId=args.parentId)
     #Set annotations
     entity.platform = platform
     entity.dataSubType = dataSubType
