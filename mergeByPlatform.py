@@ -67,19 +67,19 @@ for platform, dataSubType, name in PLATFORMS:
     if list(set(filteredMeta.fileType))[0] =='seg' or list(set(filteredMeta.fileType))[0] == 'bed5':
         dfs = mp.map(lambda f: pd.read_csv(f.path, sep='\t'), files)
         df = pd.concat(dfs, axis=0)
-        df.to_csv('/Users/duncan/sageBio/tcgaImport/out/'+name, sep='\t', index=False)
+        df.to_csv('/gluster/home/lomberg/tcgaImport/out/'+name, sep='\t', index=False)
         nSamples = len(set(df.Sample))
         nFeatures = 0
     else: #All other fileTypes
         dfs = mp.map(lambda f: pd.read_csv(f.path, sep='\t', index_col=0), files)
         df = pd.concat(dfs, axis=1)
-        df.to_csv('/Users/duncan/sageBio/tcgaImport/out/'+name, sep='\t')
+        df.to_csv('/gluster/home/lomberg/tcgaImport/out/'+name, sep='\t')
         nFeatures, nSamples = df.shape
 
     print 'Created', name, df.shape
 
     #Add file to Synapse
-    entity = synapseclient.File('/Users/duncan/sageBio/tcgaImport/out/'+name, parentId=args.parentId)
+    entity = synapseclient.File(''/gluster/home/lomberg/tcgaImport/out/''+name, parentId=args.parentId)
 
     #Set annotations
     entity.platform = platform
@@ -93,4 +93,4 @@ for platform, dataSubType, name in PLATFORMS:
     entity.platformTitle = list(set(filteredMeta.platformTitle))
     entity.nSamples = nSamples 
     entity.nFeatures = nFeatures 
-    entity = syn.store(entity, used = files, executed=thisCodeInSynapse(parentId='syn5016984'))
+    entity = syn.store(entity, used = files, executed=thisCodeInSynapse(parentId='syn1774100'))
