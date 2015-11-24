@@ -1,13 +1,15 @@
-#Downlaod the mapping from sample barcodes to uuid
+#Download the mapping from sample barcodes to uuid
 ./tcgaImport.py download uuid -o data/tcga_uuid_map
 
 #Determine what is out of date or missing in Synapse 
+#What level is I.D. on? Cancer Type, i.e. COAD? I.D. syn28192961 corresponds to TCGA live
 ./synapseCompare_meta.py --project syn2812961 -o to_update.txt
 
 #Go through the files that need updating in to_update.txt
+#I'm assuming this is the stage where each respective subclass to a data type + platform is called. 
 ./tcgaImport.py build --rmControl -u data/tcga_uuid_map -w workdir -m mirror --checksum-delete --download --outdir out mdanderson.org_BLCA_MDA_RPPA_Core
 
-#Push the changes to Synapse (this is a dry run, to actualy push changes use --push)
+#Push the changes to Synapse (this is a dry run, to actually push changes use --push)
 ./synapseLoad_files.py --project syn2812961 out/
 
 #Merge files into PANCAN files
@@ -15,7 +17,6 @@ python mergeByPlatform.py
 
 #Update the sample summary table
 python synapseUpdateSummaryTable.py --project syn2812961 --table syn3281840
-
 
 # =====
 # Get the UCEC clinical matrix
