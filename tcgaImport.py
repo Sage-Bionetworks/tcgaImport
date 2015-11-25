@@ -3,7 +3,6 @@
 
 """
 Script to scan and extract TCGA data and compile it into coherent matrices
-
 """
 
 from xml.dom.minidom import parseString
@@ -485,6 +484,7 @@ class TCGAGeneticImport(FileImporter):
     def translateUUID(self, uuid):
         return self.config.translateUUID(uuid)
     
+
     def getTargetMap(self):
         handle = TableReader(self.work_dir + "/targets")
         tTrans = {}
@@ -492,7 +492,7 @@ class TCGAGeneticImport(FileImporter):
             tTrans[ key ] = value
         return tTrans
     
-    
+
     def fileScan(self, path, dataSubType):
         """
         This function takes a TCGA level 3 genetic file (file name and input handle),
@@ -571,10 +571,12 @@ class TCGASegmentImport(TCGAGeneticImport):
 
 
     def getMeta(self, name, dataSubType):
+	# fileType hardcoded into getMeta function, and fileType listed here is used to write 
+	# extension when files are uploaded to Synapse, as synapseLoad_files reads from associated .json file
         matrixInfo = { 
-            'name' : name + "." + dataSubType + ".bed", 
+            'name' : name + "." + dataSubType + ".seg", 
             'annotations' : {
-                'fileType' : 'bed5', 
+                'fileType' : 'seg', 
                 "lastModified" : self.config.version,
                 'rowKeySrc' : "tcga.%s" % (self.config.abbr),
                 'dataSubType' : dataSubType,
@@ -927,41 +929,43 @@ class CGH1x1mImport(TCGASegmentImport):
 
 class SNP6Import(TCGASegmentImport):
     assembly = 'hg19'
+    # Dictionary which defines dictionaries for each dataSubType, i.e. 'cna'.
     dataSubTypes = { 
         'cna' : { 
             'sampleMap' :'tcga.iddag',
             'dataType' : 'genomicSegment',
             'probeFields' : ['seg.mean', 'Segment_Mean'],
             'fileInclude' : r'^.*\.hg19.seg.txt$|^.*\.segmented.dat$',
-            'extension' : 'bed',
-            'nameGen' : lambda x : "%s.hg19.cna.bed" % (x)
+            'extension' : 'seg',
+            'nameGen' : lambda x : "%s.hg19.cna.seg" % (x)
         },
         'cna_nocnv' : {
             'sampleMap' :'tcga.iddag',
             'dataType' : 'genomicSegment',
             'probeFields' : ['seg.mean',  'Segment_Mean'],
             'fileInclude' : r'^.*\.nocnv_hg19.seg.txt$|^.*\.segmented.dat$',
-            'extension' : 'bed',
-            'nameGen' : lambda x : "%s.hg19.cna_nocnv.bed" % (x)
+            'extension' : 'seg',
+            'nameGen' : lambda x : "%s.hg19.cna_nocnv.seg" % (x)
         },
         'cna_probecount' : {
             'sampleMap' :'tcga.iddag',
             'dataType' : 'genomicSegment',
             'probeFields' : ['Num_Probes'],
             'fileInclude' : r'^.*\.hg19.seg.txt$|^.*\.segmented.dat$',
-            'extension' : 'bed',
-            'nameGen' : lambda x : "%s.hg19.cna_probecount.bed" % (x)
+            'extension' : 'seg',
+            'nameGen' : lambda x : "%s.hg19.cna_probecount.seg" % (x)
         },
         'cna_nocnv_probecount' : {
             'sampleMap' :'tcga.iddag',
             'dataType' : 'genomicSegment',
             'probeFields' : ['Num_Probes'],
             'fileInclude' : r'^.*\.nocnv_hg19.seg.txt$|^.*\.segmented.dat$',
-            'extension' : 'bed',
-            'nameGen' : lambda x : "%s.hg19.cna_nocnv_probecount.bed" % (x)
+            'extension' : 'seg',
+            'nameGen' : lambda x : "%s.hg19.cna_nocnv_probecount.seg" % (x)
         }
     }
     
+
     def fileScan(self, path, dataSubType):
         with open(path) as handle:
             tmp = pd.read_csv(handle, sep="\t", dtype='object')
@@ -969,12 +973,14 @@ class SNP6Import(TCGASegmentImport):
         self.df = self.df.append(tmp)
         self.df = self.df.ix[:,['Sample', 'Chromosome', 'Start', 'End', 'Num_Probes', 'Segment_Mean']]
 
-    
+
     def fileBuild(self, dataSubType):
         tmap = self.getTargetMap()
         segFile = "%s/%s.out"  % (self.work_dir, dataSubType)
         self.df["Sample"] = [self.translateUUID(tmap.get(key, key)) for key in self.df["Sample"]]
-        self.df["Chromosome"] = self.df["Chromosome"].apply(correctChrom)
+	# Convert Num_Probes and Start cols to type int to remove decimal point
+	self.df['Num_Probes'] = self.df['Num_Probes'].astype(int)	
+	self.df['Start'] = self.df['Start'].astype(int)
         if self.config.rmControl: #Filter out control samples
             idx = [not any([k.startswith(item) for item in CONTROL_SAMPLES]) for k in self.df['Chromosome']]
         self.df.to_csv(segFile, index=False, sep="\t", float_format="%0.6g")     
