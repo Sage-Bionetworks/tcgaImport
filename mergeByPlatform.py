@@ -29,20 +29,17 @@ availPlatforms = '\n'.join(set([(x[0]+'\t') for x in platforms]))
 parser = argparse.ArgumentParser()
 parser.add_argument('benefactorId',help='ID of synapse project to merge files from.')
 parser.add_argument('parentId',help='ID of synapse project to add merged file to.')
-parser.add_argument('filePath',help='Local filepath to write merged files to.',type=str)
+parser.add_argument('filePath',default='.',help='Local filepath to write merged files to. Defaults to current directory.',type=str)
 parser.add_argument('-p','--platforms',nargs='*',help='If merging subset of platform type, add platform(s) name after option. \
 		    Available platforms' + '\n' +  availPlatforms,type=str)
 args = parser.parse_args()
 if args.platforms is not None:
 	platforms = [x for x in platforms if x[0] in args.platforms]	
-QUERY_STR = "select * from file where benefactorId==" + ("'{0}'").format(args.benefactorId)
+query_str = "select * from file where benefactorId==" + ("'{0}'").format(args.benefactorId)
 
 
-def isUptodate(name, files):
-    q = syn.chunkedQuery("select id from file where name=='%s' and parentId=='%s'" %(name, args.parentId))
-    try:
-        id =  q.next()['file.id']
-    except StopIteration:
+def isUptodate(name, files,parentId):
+    if not syn._findEntityIdByNameAndParent(name,parentId):
         return False
     activity = syn.getProvenance(id)
     used = set(['%s.%s' % (x['reference']['targetId'], x['reference']['targetVersionNumber']) for x in activity['used'] if x['wasExecuted']==False])
@@ -52,12 +49,12 @@ def isUptodate(name, files):
 
 mp = Pool(8)
 syn = synapseclient.login(silent=True)
-allFiles =  query2df(syn.chunkedQuery(QUERY_STR))
+allFiles =  query2df(syn.chunkedQuery(query_str))
 for platform, dataSubType, name in platforms:
     print platform, dataSubType,
     filteredMeta = allFiles[(allFiles.platform==platform) & (allFiles.dataSubType==dataSubType) & (allFiles.acronym!='PANCAN')]
     files = mp.map(syn.get, filteredMeta.id)
-    if isUptodate(name, files):
+    if isUptodate(name, files, args.parentId):
         print ' is up to date'
         continue
     if list(set(filteredMeta.fileType))[0] in ['seg','bed']:
