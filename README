@@ -10,8 +10,8 @@
 #Push the changes to Synapse (this is a dry run, to actually push changes use --push)
 ./synapseLoad_files.py --project syn2812961 out/
 
-#Merge files into PANCAN files
-python mergeByPlatform.py
+#Merge files into PANCAN files (replace benefactorId with synapse projectId to merge files from and parentId with synapse project Id to upload merged files to.)
+python mergeByPlatform.py benefactorId parentId 
 
 #Update the sample summary table
 python synapseUpdateSummaryTable.py --project syn2812961 --table syn3281840
