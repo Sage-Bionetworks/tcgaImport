@@ -26,6 +26,7 @@ import logging
 from argparse import ArgumentParser
 from urlparse import urlparse
 import pandas as pd
+import string
 
 
 """
@@ -559,7 +560,7 @@ class TCGASegmentImport(TCGAGeneticImport):
         This function takes a TCGA level 3 genetic file (file name and input handle),
         and tries to extract probe levels or target mappings (experimental ID to TCGA barcode)
         it emits these values to a handle, using the 'targets' and 'probes' string to identify 
-        the type of data being emited
+        the type of data being emitted
         """
         with open(path,'U') as iHandle:
             tmp = pd.read_csv(iHandle, sep="\t", header=0, dtype='object')
@@ -596,7 +597,7 @@ class TCGASegmentImport(TCGAGeneticImport):
 
         self.df["key"] = [self.translateUUID(tmap.get(key, key).lower()) for key in self.df["key"]]
         self.df = self.df[self.df.key != 'NA']
-        self.df["chrom"] = self.df["chrom"].apply(correctChrom)
+        self.df["chrom"] = self.df["chrom"].apply(numChrom)
         if self.config.rmControl: #Filter out control samples
             idx = [not any([k.startswith(item) for item in CONTROL_SAMPLES]) for k in self.df['key']]
             self.df = self.df[idx]
@@ -1041,11 +1042,11 @@ class IlluminaHiSeq_DNASeqC(TCGASegmentImport):
             'probeFields' : ['Segment_Mean'],
             'fileExclude' : r'.*targets$',
             'startField' : 'Start',
-            'extension' : 'bed',
-            'nameGen' : lambda x : "%s.cna.bed" % (x)
+            'extension' : 'seg',
+            'nameGen' : lambda x : "%s.cna.seg" % (x)
         }
     }
-    
+
 
 class HT_HGU133A(TCGAMatrixImport):
     dataSubTypes = {
@@ -1059,6 +1060,7 @@ class HT_HGU133A(TCGAMatrixImport):
             'nameGen' : lambda x : "%s.geneExp.tsv" % (x)
         }
     }
+
 
 class HuEx1_0stv2(TCGAMatrixImport):
     dataSubTypes = {
@@ -1436,6 +1438,11 @@ def correctChrom(key):
         key = "chr" + str(key)
     return key.upper().replace("CHR", "chr")
 
+def numChrom(key):
+   chars = string.maketrans('','') 
+   exclude = string.digits + 'xyXY'
+   nodigs = chars.translate(chars,exclude)
+   return key.translate(chars,nodigs)
 
 def getText(nodelist):
     rc = []
