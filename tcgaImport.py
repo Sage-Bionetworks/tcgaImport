@@ -924,7 +924,7 @@ class CGH1x1mImport(TCGASegmentImport):
             "dataType" : 'genomicSegment',
             "probeFields" : ['seg.mean'],
             'fileExclude' : r'.*targets$',
-            'nameGen' : lambda x : "%s.cna.bed" % (x)
+            'nameGen' : lambda x : "%s.cna.seg" % (x)
         }
     }
 
@@ -1010,8 +1010,8 @@ class CGH244AImport(TCGASegmentImport):
             'dataType' : 'genomicSegment',
             'fileExclude' : r'.*targets$',
             'probeFields' : ['Segment_Mean','seg.mean'],
-            'extension' : 'bed',
-            'nameGen' : lambda x : "%s.cna.bed" % (x)
+            'extension' : 'seg',
+            'nameGen' : lambda x : "%s.cna.seg" % (x)
         }
     }
     #TODO reformat output to match SNP_6
@@ -1027,8 +1027,8 @@ class CGH415K_G4124A(TCGASegmentImport):
             'endField' : 'End',
             'probeFields' : ['Segment_Mean'],
             'startField' : 'Start',
-            'extension' : 'bed',
-            'nameGen' : lambda x : "%s.cna.bed" % (x)
+            'extension' : 'seg',
+            'nameGen' : lambda x : "%s.cna.seg" % (x)
         }
     }
 
@@ -1092,8 +1092,8 @@ class Human1MDuoImport(TCGASegmentImport_HumanHap):
             'fileInclude' : '^.*seg.txt$|^.*segnormal.txt$',
             'fileExclude' : r'.*targets$',
             'probeFields' : ['mean'],
-            'extension' : 'bed',
-            'nameGen' : lambda x : "%s.cna.bed" % (x)
+            'extension' : 'seg',
+            'nameGen' : lambda x : "%s.cna.seg" % (x)
         }
     }
 
@@ -1105,8 +1105,8 @@ class HumanHap550(TCGASegmentImport_HumanHap):
             'fileInclude' : '^.*seg.txt$|^.*segnormal.txt$',
             'fileExclude' : r'.*targets$',
             'probeFields' : ['mean'],
-            'extension' : 'bed',
-            'nameGen' : lambda x : "%s.cna.bed" % (x)
+            'extension' : 'seg',
+            'nameGen' : lambda x : "%s.cna.seg" % (x)
         }
     }
 
